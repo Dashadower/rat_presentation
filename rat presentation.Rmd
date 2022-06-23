@@ -3,8 +3,8 @@ title: 'Rat: An Experiment in Refining A Regression Syntax'
 author: "Ben Bales, Shinyoung Kim"
 date: "2022-06-22"
 output:
-  ioslides_presentation: default
-  slidy_presentation: default
+  ioslides_presentation:
+    smaller: true
 ---
 
 ```{r setup, include=FALSE}
@@ -47,53 +47,21 @@ $$
 Bayesian linear regression:
 $$
 \begin{aligned}
-\mu &\sim \mathrm{normal}(0, 1) \\
+y &\sim \mathrm{normal}(\mu, \sigma) \\
+\mu &= \alpha + \beta x \\
+\alpha &\sim \mathrm{normal}(0, 1) \\
+\beta &\sim \mathrm{normal}(0, 1) \\
 \sigma &\sim \mathrm{beta}(2, 1) \\
-y &\sim \mathrm{normal}(\mu, \sigma)
 \end{aligned}
 $$
 
 ## Multilevel Models
-- Modeling the probability of someone voting
-- Hypothesis: income and age affect the probability
-- "The probability of one voting is a linear regression involving income and age, where the coefficient for age is a linear function of income"
-
-Using a bernoulli-logit model:
-$$
-\begin{aligned}
-vote &\sim \textrm{Bernoulli}(\eta) \\
-\eta &= \mathrm{logit}(\alpha + \beta_{income} \times income + \beta_{age} \times age) \\
-\beta_{age} &= \alpha_{age} + \lambda \times income \\
-\end{aligned}
-$$
+Add some explanation here
 
 
-## Multilevel Models
-This is expressed in lme4 through R as:
-```
-glm(vote ~ income + age + income:age, family = binomial)
-```
-
-## Multilevel Models
-In Stan this becomes:
-```
-data {
-int<lower=1> N;
-vector[N] age;
-vector[N] income;
-int<lower=0, upper=1> vote[N];
-}
-parameters {
-vector[2] lambda;
-vector[2] beta;
-}
-model {
-vector[N] beta_age = lambda[1] + lambda[2] * income;
-vector[N] eta = beta[1] + beta[2] * income + beta_age .* income;
-target += bernoulli_logit_lpmf(vote, eta);
-}
-```
-
+## Multilevel Models - Groups
+- Turns out "multilevel" regressions are about parameters which exist for each memebers in a group(gender, ethnicity, region, etc.)
+- 
 
 ## Introducing Rat
 Specify models through sampling and assignment statements
@@ -182,19 +150,33 @@ tau<lower = 0.0> ~ log_normal(0, 1);
   + Log probability evaluation
   + Parameter un-constraning and transformation
 
-![](images/eightschools_rat_python_code.png)
+<img src="images/eightschools_rat_python_code.png" style="width: 70%;" />
+
 
 ## Example Model - MRP
-- Stands for "Multilevel Regression with Poststratification"
-- 
+- Modeling survey response to “Allow employers to decline coverage of abortions in insurance plans (Support / Oppose)”
 
 ## Example Model - MRP
-- 
+<img src="images/mrp_model_formula.png" style="width: 100%;" />
+
+## Example Model - MRP
+- Note how `lme4` syntax allows simple specifications of group-level variables.
+```
+fit <- stan_glmer(abortion ~ (1 | state) + (1 | eth) + (1 | educ) + male +
+                    (1 | male:eth) + (1 | educ:age) + (1 | educ:eth) +
+                    repvote + factor(region),
+  family = binomial(link = "logit"),
+  data = cces_df,
+  prior = normal(0, 1, autoscale = TRUE),
+  prior_covariance = decov(scale = 0.50),
+  adapt_delta = 0.99,
+  refresh = 0,
+  seed = 1010)
+```
 
 ## Example Model - MRP
 - Quite Complex!
 ```
-# Question was: Allow employers to decline coverage of abortions in insurance plans (Support / Oppose)
 allow_decline_coverage ~ bernoulli_logit(
     b_repvote * repvote' +
     b_male * male +
@@ -237,6 +219,11 @@ sigma_educ_eth<lower = 0.0> ~ log_normal(0.0, 1.0);
 
 ```
 
+## Example Model - MRP
+Resulting plot created from parameters inferred by Rat:
+<img src="images/mrp_rat_plot.png" style="width: 100%;" />
+Resulting plot 
+
 ## Rat Pipeline
 - Input: Rat model text
 - Compiler output: Python script which defines functions for log density calculation and parameter transformation
@@ -261,7 +248,7 @@ sigma_educ_eth<lower = 0.0> ~ log_normal(0.0, 1.0);
 - Parameters are declared by use
 - Need to identify which subscript factors should parameters exist for
 
-## Identifying Parameter Domains 1 - Dataframe Manipulation
+## Identifying Parameter Domains - Dataframe Manipulation
 - Parameter dataframes are transformations of input dataframe columns
 - We can figure out a dependency relation between dataframes of parameters
 - The 'data' dataframe isn't dependent on any other dataframes, which serves as our starting point
@@ -293,3 +280,5 @@ sigma_educ_eth<lower = 0.0> ~ log_normal(0.0, 1.0);
 - Such checks require rewriting the model and preparations(simulating data from the model)
 - Design an interface which can perform such checks given a Rat model and data(or even without any data!)
 
+## References
+- MRP
