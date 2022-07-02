@@ -104,9 +104,10 @@ $$
 - Reparameterize to relieve correlation:
 $$
 \begin{aligned}
-y &\sim \mathrm{normal}(\theta_{school}, \sigma) \\
+y_{school} &\sim \mathrm{normal}(\theta_{school}, \sigma_{school}) \\
 \theta_{school} &= \mu + z_{school} \times \tau \\
 \mu &\sim \mathrm{normal}(0, 5) \\
+z_{school} &\sim \mathrm{normal}(0, 1)\\
 \tau &\sim \mathrm{lognormal}(0, 1)
 \end{aligned}
 $$
